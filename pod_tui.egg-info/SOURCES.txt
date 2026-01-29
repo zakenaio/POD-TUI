@@ -1,0 +1,8 @@
+README.md
+setup.py
+pod_tui.egg-info/PKG-INFO
+pod_tui.egg-info/SOURCES.txt
+pod_tui.egg-info/dependency_links.txt
+pod_tui.egg-info/entry_points.txt
+pod_tui.egg-info/requires.txt
+pod_tui.egg-info/top_level.txt
