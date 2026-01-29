@@ -44,31 +44,31 @@ SUB_FILE = os.path.expanduser("~/.config/pod-tui/subscriptions.json")
 
 # ASCII Block Font (5 lines)
 BIG_FONT = {
-'A': [" █ ", "█▄█", "█ █", "█ █", "█ █"],
-    'B': ["█▀▄", "█▀▄", "█▀▀▄", "█  █", "▀▀▀ "],
-    'C': [" ▀▀", "█  ", "█  ", "█  ", " ▀▀"],
-    'D': ["█▀▄ ", "█  █", "█  █", "█  █", "▀▀▀ "],
-    'E': ["█▀▀", "█▀ ", "█▀ ", "█  ", "▀▀▀"],
-    'F': ["█▀▀", "█▀ ", "█▀ ", "█  ", "█  "],
-    'G': [" ▀▀", "█  ", "█ ▀█", "█  █", " ▀▀ "],
+    'A': ["▄█▄", "█▄█", "█ █", "█ █", "█ █"],
+    'B': ["█▀▄ ", "█ █ ", "█▀▀▄", "█  █", "▀▀▀ "],
+    'C': ["▄▀▀", "█  ", "█  ", "█  ", "▀▄▄"],
+    'D': ["█▀▄ ", "█  █", "█  █", "█  █", "█▄▀ "],
+    'E': ["█▀▀", "█  ", "█▀ ", "█  ", "█▄▄"],
+    'F': ["█▀▀", "█  ", "█▀ ", "█  ", "█  "],
+    'G': ["▄▀▀ ", "█   ", "█ ▀█", "█  █", "▀▄▄▀"],
     'H': ["█ █", "█ █", "█▀█", "█ █", "█ █"],
     'I': ["█", "█", "█", "█", "█"],
-    'J': ["  █", "  █", "  █", "█ █", " ▀ "],
+    'J': ["  █", "  █", "  █", "█ █", "▀▄▀"],
     'K': ["█ █", "█▀ ", "█▄ ", "█ █", "█ █"],
-    'L': ["█  ", "█  ", "█  ", "█  ", "▀▀▀"],
+    'L': ["█  ", "█  ", "█  ", "█  ", "█▄▄"],
     'M': ["█   █", "██ ██", "█ █ █", "█   █", "█   █"],
     'N': ["█   █", "██  █", "█ █ █", "█  ██", "█   █"],
-    'O': [" █ ", "█ █", "█ █", "█ █", " █ "],
+    'O': ["▄█▄", "█ █", "█ █", "█ █", "▀█▀"],
     'P': ["█▀▄", "█ █", "█▀ ", "█  ", "█  "],
     'Q': [" █  ", "█ █ ", "█ █ ", "█ ▄█", " ▀▀▀"],
-    'R': ["█▀▄", "█ █", "█▀ ", "█ █", "█ █"],
-    'S': [" ▀▀", "▀▀▄", "  █", "▄▄▀", "▀▀ "],
+    'R': ["█▀▄", "█ █", "█▀▄", "█ █", "█ █"],
+    'S': ["▄▀▀", "█  ", "▀▀▄", "  █", "▄▄▀"],
     'T': ["▀█▀", " █ ", " █ ", " █ ", " █ "],
-    'U': ["█ █", "█ █", "█ █", "█ █", " ▀ "],
+    'U': ["█ █", "█ █", "█ █", "█ █", "▀▄▀"],
     'V': ["█ █", "█ █", "█ █", "▀▄▀", " ▀ "],
-    'W': ["█   █", "█   █", "█ █ █", "██▄██", "█   █"],
+    'W': ["█   █", "█   █", "█ █ █", "██ ██", "█   █"],
     'X': ["█ █", "▀▄▀", " █ ", "▄▀▄", "█ █"],
-    'Y': ["█ █", "▀▄▀", " █ ", " █ ", " █ "],
+    'Y': ["█ █", "█ █", "▀▄▀", " █ ", " █ "],
     'Z': ["▀▀█", "  █", " █ ", "█  ", "▀▀▀"],
     'Å': [" ▄ ", " █ ", "█▀█", "█ █", "█ █"],
     'Ä': ["▄ ▄", " █ ", "█▀█", "█ █", "█ █"],
@@ -79,14 +79,14 @@ BIG_FONT = {
     '3': ["▀▀▄", "  █", " ▀▄", "  █", "▀▀▄"],
     '4': ["█ █", "█ █", "▀▀█", "  █", "  █"],
     '5': ["█▀▀", "█▀▄", "  █", "▄▄▀", "▀▀ "],
-    '6': [" ▄▀", "█▀▄", "█ █", "▀▄▀", " ▀ "],
+    '6': [" ▄▀", "█▀▄", "█ █", "█ █", "▀▄▀"],
     '7': ["▀▀█", "  █", " █ ", " █ ", " █ "],
-    '8': ["▄▀▄", "█▀█", "█▀█", "█▄█", "▀▄▀"],
+    '8': ["▄▀▄", "█ █", "█▀█", "█ █", "▀▄▀"],
     '9': ["▄▀▄", "█▄█", " ▀█", "▄▄▀", " ▀ "],
     ' ': ["  ", "  ", "  ", "  ", "  "],
-    ':': ["▄", " ", " ", "▄", " "],
+    ':': [" "," ", "▄", " ", " ", "▄"],
     '-': ["    ", "    ", "▀▀▀▀", "    ", "    "],
-    '.': [" ", " ", " ", " ", "▄"],
+    '.': [" "," ", " ", " ", " ", "▄"],
 }
 
 class PodcastPlayer:
@@ -297,7 +297,7 @@ class PodcastPlayer:
         
         inner = []; pane_w = self.console.size.width * 2 // 4; target_ep = self.playing_episode; is_playing_cur = False
         if not target_ep:
-            if self.active_pane == 'episodes' and self.episodes: target_ep = self.episodes[self.selected_episode_index]
+            if self.active_pane in ['episodes', 'now_playing'] and self.episodes: target_ep = self.episodes[self.selected_episode_index]
             elif self.active_pane == 'podcasts' and self.podcasts: 
                 p = self.podcasts[self.selected_podcast_index]
                 if p.get('type') not in ['header', 'global']:
@@ -328,8 +328,8 @@ class PodcastPlayer:
             else: inner.append(Text(status, style=f"bold {POD_BLUE}"))
             inner.append(Text("\n" + target_ep.get('description',''), style=LIGHT_TEXT))
         
-        layout["now_playing"].update(Panel(Align.center(Text("\n").join(inner), vertical="middle"), title="Info / Now Playing", border_style=POD_BLUE))
-        footer = Text("↑/↓: Nav | Ent: Play | /: Search | s: Sub | Tab: Pane | ←/→: Seek | q: Quit", style=GRAY_TEXT)
+        layout["now_playing"].update(Panel(Align.center(Text("\n").join(inner), vertical="middle"), title="Info / Now Playing", border_style=POD_BLUE if self.active_pane == 'now_playing' else GRAY_TEXT))
+        footer = Text("↑/↓: Nav | Ent: Play | /: Search (or URL) | s: Sub | Tab: Pane | ←/→: Seek/Pane | q: Quit", style=GRAY_TEXT)
         if self.search_mode: footer = Text(f"🔍 {self.search_buffer}█", style=LIGHT_TEXT)
         layout["footer"].update(Align.center(footer))
 
@@ -342,11 +342,17 @@ class PodcastPlayer:
                     char = sys.stdin.read(1)
                     if self.search_mode:
                         if char in ['\r', '\n']:
-                            try:
-                                resp = requests.get(f"https://itunes.apple.com/search?term={requests.utils.quote(self.search_buffer)}&entity=podcast").json()
-                                self.discovery = [{'name': r.get('collectionName', 'Unknown'), 'artist': r.get('artistName', 'Unknown'), 'itunes_id': r.get('collectionId'), 'feed_url': r.get('feedUrl', ''), 'description': r.get('primaryGenreName', 'Podcast')} for r in resp.get('results', [])]
-                                self.selected_podcast_index = 0; self.active_pane = 'podcasts'; self.update_podcast_list()
-                            except: pass
+                            if self.search_buffer.startswith('http'):
+                                # Direct RSS feed support
+                                pod = {'name': 'Custom Feed', 'artist': 'RSS', 'feed_url': self.search_buffer, 'itunes_id': None, 'description': 'Custom RSS Feed'}
+                                self.subscriptions.append(pod); self.save_subscriptions()
+                                self.update_podcast_list(); self.active_pane = 'podcasts'
+                            else:
+                                try:
+                                    resp = requests.get(f"https://itunes.apple.com/search?term={requests.utils.quote(self.search_buffer)}&entity=podcast").json()
+                                    self.discovery = [{'name': r.get('collectionName', 'Unknown'), 'artist': r.get('artistName', 'Unknown'), 'itunes_id': r.get('collectionId'), 'feed_url': r.get('feedUrl', ''), 'description': r.get('primaryGenreName', 'Podcast')} for r in resp.get('results', [])]
+                                    self.selected_podcast_index = 0; self.active_pane = 'podcasts'; self.update_podcast_list()
+                                except: pass
                             self.search_mode = False
                         elif char == '\x1b': self.search_mode = False
                         elif ord(char) == 127: self.search_buffer = self.search_buffer[:-1]
@@ -356,7 +362,9 @@ class PodcastPlayer:
                         elif char == '/':
                              if self.active_pane == 'podcasts': self.search_mode = True; self.search_buffer = ""
                         elif char == 's': self.toggle_subscription()
-                        elif ord(char) == 9: self.active_pane = 'episodes' if self.active_pane == 'podcasts' else 'podcasts'
+                        elif ord(char) == 9: # Tab cycle
+                             cycle = ['podcasts', 'episodes', 'now_playing']
+                             self.active_pane = cycle[(cycle.index(self.active_pane) + 1) % len(cycle)]
                         elif char == 'h': self.active_pane = 'podcasts'
                         elif char == 'l': self.active_pane = 'episodes'
                         elif char == ' ': self.send_mpv_command(["cycle", "pause"])
@@ -377,12 +385,13 @@ class PodcastPlayer:
                                     if self.podcasts[self.selected_podcast_index].get('type') == 'header':
                                         self.selected_podcast_index = min(len(self.podcasts)-1, self.selected_podcast_index + 1)
                                 else: self.selected_episode_index = min(len(self.episodes) - 1, self.selected_episode_index + 1)
-                            elif seq == '[D': # Left (Seek)
-                                if self.mpv_process and self.mpv_process.poll() is None: self.send_mpv_command(["seek", -10])
-                                else: self.active_pane = 'podcasts'
-                            elif seq == '[C': # Right (Seek)
-                                if self.mpv_process and self.mpv_process.poll() is None: self.send_mpv_command(["seek", 10])
-                                else: self.active_pane = 'episodes'
+                            elif seq == '[D': # Left
+                                if self.active_pane == 'now_playing': self.send_mpv_command(["seek", -10])
+                                elif self.active_pane == 'episodes': self.active_pane = 'podcasts'
+                            elif seq == '[C': # Right
+                                if self.active_pane == 'now_playing': self.send_mpv_command(["seek", 10])
+                                elif self.active_pane == 'podcasts': self.active_pane = 'episodes'
+                                elif self.active_pane == 'episodes': self.active_pane = 'now_playing'
         finally: termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
     def run(self):
