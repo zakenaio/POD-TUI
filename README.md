@@ -1,26 +1,25 @@
-# POD-TUI 🎙️
+# POD-TUI
 
-Ett vackert och blått kommandoradsverktyg för podcasts. Baserat på SR-TUI men för poddar överallt.
+A beautiful terminal-based podcast explorer. Based on the SR-TUI aesthetic but for podcasts from any source.
 
-## ✨ Funktioner
-- **🔍 Sök:** Hitta poddar via iTunes API.
-- **🔗 RSS:** Lägg till egna RSS-flöden direkt via sökfältet.
-- **🌟 Prenumerera:** Spara dina favoritpoddar.
-- **📅 Sortering:** "Mina poddar" sorteras automatiskt med de senaste avsnitten överst.
-- **🎨 Blå design:** Premium blått tema (#1D8AB9).
-- **⏩ Kontroll:** Spola framåt/bakåt (15 sek) och pausa.
+## Features
+- Search: Find podcasts via the iTunes API.
+- RSS Support: Add custom RSS feeds directly through the search bar.
+- Subscribe: Save your favorite podcasts.
+- Auto-Sorting: "Subscriptions" are automatically sorted with the latest episodes at the top.
+- Premium Design: Consistent Blue theme (#1D8AB9).
+- Playback Control: Seek forward/backward (10 sec) and pause/resume.
 
-## 🚀 Installation
-1. Klona projektet.
-2. Kör `./install.sh`.
-3. Kör `pod-tui`.
+## Installation
+1. Clone the repository.
+2. Run `./install.sh`.
+3. Run `pod-tui`.
 
-## ⌨️ Tangentbord
-- `/`: Sök
-- `Enter`: Välj podd / Spela avsnitt
-- `Tab`: Växla mellan "Mina poddar" och "Sökresultat"
-- `s`: Prenumerera
-- `u`: Avsluta prenumeration
-- `Space`: Pausa/Starta
-- `.` / `,`: Spola framåt/bakåt (15 sek)
-- `q`: Avsluta
+## Controls
+- /: Search
+- Enter: Select podcast / Play episode
+- Tab: Switch between Podcasts and Episodes
+- s: Toggle Subscription
+- Space: Pause/Resume
+- Left/Right Arrows: Seek backward/forward (10 sec)
+- q: Quit
