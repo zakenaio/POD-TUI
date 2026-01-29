@@ -41,6 +41,7 @@ ERROR_RED = "#FF5555"
 
 MPV_SOCKET_PATH = f"/tmp/pod-tui-mpv-{os.getuid()}.sock"
 SUB_FILE = os.path.expanduser("~/.config/pod-tui/subscriptions.json")
+HISTORY_FILE = os.path.expanduser("~/.config/pod-tui/history.json")
 
 # ASCII Block Font (5 lines)
 BIG_FONT = {
@@ -98,6 +99,8 @@ class PodcastPlayer:
         self.current_position = 0.0; self.total_duration = 0.0
         self.console = Console(); self.load_subscriptions()
         self.is_fetching_episodes = False; self.loading_status = ""; self.last_index_for_fetch = -1; self.error_message = ""
+        self.playback_history = self.load_history()
+        self.last_save_time = time.time()
         self.fetch_discovery(); self.update_podcast_list()
         
         if os.path.exists(MPV_SOCKET_PATH):
@@ -115,6 +118,8 @@ class PodcastPlayer:
         try:
             with open(SUB_FILE, 'w') as f: json.dump(self.subscriptions, f)
         except: pass
+
+
 
     def fetch_discovery(self):
         try:
@@ -237,7 +242,14 @@ class PodcastPlayer:
         if self.mpv_process:
             try: self.mpv_process.terminate()
             except: pass
-        cmd = ["mpv", "--no-video", "--no-terminal", f"--input-ipc-server={MPV_SOCKET_PATH}", "--user-agent=Mozilla/5.0", "--demuxer-max-bytes=50M", "--network-timeout=30", "--ytdl=no", ep['url']]
+        
+        start_pos = self.playback_history.get(ep['url'], 0)
+        cmd = ["mpv", "--no-video", "--no-terminal", f"--input-ipc-server={MPV_SOCKET_PATH}", "--user-agent=Mozilla/5.0", "--demuxer-max-bytes=50M", "--network-timeout=30", "--ytdl=no"]
+        if start_pos > 10: # Only resume if more than 10s in
+            cmd.append(f"--start={int(start_pos)}")
+            self.error_message = f"Resuming from {self.format_time(start_pos)}..."
+        cmd.append(ep['url'])
+        
         try:
             log_f = open(MPV_LOG, "a")
             self.mpv_process = subprocess.Popen(cmd, stdout=log_f, stderr=log_f)
@@ -318,6 +330,12 @@ class PodcastPlayer:
             if is_playing_cur:
                  self.current_position, self.total_duration = pos, dur
                  status = "▶ PLAYING" if (self.get_mpv_property("pause") == False) else "⏸ PAUSED"
+                 # Save history periodically
+                 if time.time() - self.last_save_time > 5:
+                     if pos > 0:
+                         self.playback_history[target_ep['url']] = pos
+                         self.save_history()
+                     self.last_save_time = time.time()
             else: status = "○ READY"
             bar_len = 30
             if dur and dur > 0:
