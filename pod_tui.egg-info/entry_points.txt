@@ -1,2 +1,0 @@
-[console_scripts]
-pod-tui = pod_tui:main

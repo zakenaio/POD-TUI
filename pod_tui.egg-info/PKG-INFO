@@ -1,7 +1,0 @@
-Metadata-Version: 2.4
-Name: pod-tui
-Version: 1.0.0
-Requires-Dist: requests
-Requires-Dist: feedparser
-Requires-Dist: rich
-Dynamic: requires-dist
