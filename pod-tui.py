@@ -119,6 +119,18 @@ class PodcastPlayer:
             with open(SUB_FILE, 'w') as f: json.dump(self.subscriptions, f)
         except: pass
 
+    def load_history(self):
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, 'r') as f: return json.load(f)
+            except: pass
+        else: os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+        return {}
+
+    def save_history(self):
+        try:
+            with open(HISTORY_FILE, 'w') as f: json.dump(self.playback_history, f)
+        except: pass
 
 
     def fetch_discovery(self):
