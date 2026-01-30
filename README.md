@@ -37,11 +37,20 @@ Manage your favorite podcasts easily. Subscriptions are saved locally and update
 2. Run `./install.sh`.
 3. Launch with `pod-tui`.
 
-## Controls
-- / : Search
-- Enter : Select podcast / Play episode
-- Tab : Switch between Podcasts and Episodes
-- s : Toggle Subscription
-- Space : Pause/Resume
-- Left/Right Arrows : Seek backward/forward (10 sec)
-- q : Quit
+## Keyboard Commands
+
+| Key | Mode | Function |
+|---------|----------|----------|
+| `Tab` | App | Cycle between panes (Podcasts / Episodes / Now Playing) |
+| `↑` / `↓` | Lists | Navigate up/down in lists |
+| `Enter` | Podcasts | Select podcast and load episodes |
+| `Enter` | Episodes | Play selected episode |
+| `Space` | Player | Pause / Resume playback |
+| `s` | Podcasts | Toggle subscription |
+| `/` | Podcasts | Search podcasts or add RSS URL |
+| `→` | Podcasts / Episodes | Focus next pane to the right |
+| `←` | Episodes / Now Playing | Focus previous pane to the left |
+| `→` | Now Playing | Seek forward 10 seconds |
+| `←` | Now Playing | Seek backward 10 seconds |
+| `Esc` | Search | Exit search mode |
+| `q` | App | Quit application |
