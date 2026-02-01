@@ -11,6 +11,7 @@ from rich.table import Table
 from rich.live import Live
 from rich.text import Text
 from rich.align import Align
+from rich.padding import Padding
 import json
 import socket
 import select
@@ -98,7 +99,7 @@ class PodcastPlayer:
         self.search_mode = False; self.search_buffer = ""
         self.current_position = 0.0; self.total_duration = 0.0
         self.console = Console(); self.load_subscriptions()
-        self.is_fetching_episodes = False; self.loading_status = ""; self.last_index_for_fetch = -1; self.error_message = ""
+        self.is_fetching_episodes = False; self.loading_status = ""; self.last_index_for_fetch = -1; self.error_message = ""; self.error_time = 0
         self.playback_history = self.load_history()
         self.last_save_time = time.time()
         self.fetch_discovery(); self.update_podcast_list()
@@ -132,13 +133,31 @@ class PodcastPlayer:
             with open(HISTORY_FILE, 'w') as f: json.dump(self.playback_history, f)
         except: pass
 
+    def set_error(self, msg):
+        self.error_message = msg; self.error_time = time.time()
+
 
     def fetch_discovery(self):
         try:
+            self.set_error("Updating discovery charts...")
             url = "https://rss.applemarketingtools.com/api/v2/us/podcasts/top/50/podcasts.json"
             resp = requests.get(url, timeout=5); data = resp.json().get('feed', {}).get('results', [])
             self.discovery = [{'name': r.get('name'), 'artist': r.get('artistName'), 'feed_url': "", 'itunes_id': r.get('id'), 'description': r.get('genres', [{}])[0].get('name', 'Podcast'), 'full_description': ""} for r in data]
-        except: pass
+            self.set_error("")
+        except Exception as e:
+            self.set_error(f"Discovery error: {str(e)}")
+
+    def get_visible_podcasts(self):
+        if self.search_mode and self.search_buffer:
+            q = self.search_buffer.lower()
+            return [p for p in self.podcasts if q in p.get('name', '').lower() or q in p.get('artist', '').lower() or p.get('type') == 'header']
+        return self.podcasts
+
+    def get_visible_episodes(self):
+        if self.search_mode and self.search_buffer:
+            q = self.search_buffer.lower()
+            return [e for e in self.episodes if q in e.get('title', '').lower() or q in e.get('description', '').lower()]
+        return self.episodes
 
     def update_podcast_list(self):
         new_list = []
@@ -241,7 +260,7 @@ class PodcastPlayer:
 
     def get_mpv_property(self, prop):
         try:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); sock.settimeout(0.02); sock.connect(MPV_SOCKET_PATH)
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); sock.settimeout(0.1); sock.connect(MPV_SOCKET_PATH)
             cmd = json.dumps({"command": ["get_property", prop]}) + "\n"; sock.send(cmd.encode())
             data = json.loads(sock.recv(4096).decode()); sock.close()
             if 'data' in data: return data['data']
@@ -249,8 +268,8 @@ class PodcastPlayer:
         return None
 
     def play_episode(self, ep):
-        if not ep or not ep.get('url'): self.error_message = "Error: No URL found."; return
-        self.playing_episode = ep; self.error_message = ""
+        if not ep or not ep.get('url'): self.set_error("Error: No URL found."); return
+        self.playing_episode = ep; self.set_error("")
         if self.mpv_process:
             try: self.mpv_process.terminate()
             except: pass
@@ -259,13 +278,13 @@ class PodcastPlayer:
         cmd = ["mpv", "--no-video", "--no-terminal", f"--input-ipc-server={MPV_SOCKET_PATH}", "--user-agent=Mozilla/5.0", "--demuxer-max-bytes=50M", "--network-timeout=30", "--ytdl=no"]
         if start_pos > 10: # Only resume if more than 10s in
             cmd.append(f"--start={int(start_pos)}")
-            self.error_message = f"Resuming from {self.format_time(start_pos)}..."
+            self.set_error(f"Resuming from {self.format_time(start_pos)}...")
         cmd.append(ep['url'])
         
         try:
             log_f = open(MPV_LOG, "a")
             self.mpv_process = subprocess.Popen(cmd, stdout=log_f, stderr=log_f)
-        except Exception as e: self.error_message = f"MPV Error: {str(e)}"
+        except Exception as e: self.set_error(f"MPV Error: {str(e)}")
 
     def toggle_subscription(self):
         pod = self.podcasts[self.selected_podcast_index]
@@ -284,6 +303,7 @@ class PodcastPlayer:
         return layout
 
     def update_layout(self, layout):
+        if self.error_message and time.time() - self.error_time > 5: self.error_message = ""
         header_text = Text.assemble(("POD-TUI", f"bold {POD_BLUE}"), (" - Podcast Explorer ", LIGHT_TEXT), (f"[{datetime.now().strftime('%H:%M:%S')}]", GRAY_TEXT))
         layout["header"].update(Panel(Align.center(header_text, vertical="middle"), border_style=POD_BLUE))
         
@@ -294,8 +314,12 @@ class PodcastPlayer:
                 threading.Thread(target=self.async_fetch_episodes, args=(pod,), daemon=True).start()
             
         p_table = Table(show_header=False, box=None, expand=True); p_table.add_column("N")
-        h = self.console.size.height - 8; p_start = max(0, self.selected_podcast_index - h // 2)
-        for i, p in enumerate(self.podcasts[p_start:p_start+h]):
+        h = self.console.size.height - 8; 
+        visible_pods = self.get_visible_podcasts()
+        self.selected_podcast_index = max(0, min(self.selected_podcast_index, len(visible_pods)-1)) if visible_pods else 0
+        p_start = max(0, self.selected_podcast_index - h // 2)
+        
+        for i, p in enumerate(visible_pods[p_start:p_start+h]):
             if p.get('type') == 'header':
                 p_table.add_row(Text(f"\n{p['name']}", style=GRAY_TEXT))
                 continue
@@ -304,20 +328,31 @@ class PodcastPlayer:
             elif any(s['name'] == p['name'] for s in self.subscriptions): marker = "★ "
             style = f"bold {POD_BLUE}" if (p_start+i == self.selected_podcast_index and self.active_pane == 'podcasts') else ""
             p_table.add_row(Text(f"{marker}{p['name']}", style=style))
-        layout["podcasts"].update(Panel(p_table, title="Podcasts", border_style=POD_BLUE if self.active_pane == 'podcasts' else GRAY_TEXT))
+        
+        if self.search_mode and self.search_buffer and not [p for p in visible_pods if p.get('type') not in ['header', 'global']]:
+            p_table.add_row(Text("\n[Enter] to search iTunes", style=GRAY_TEXT))
+            
+        layout["podcasts"].update(Panel(Padding(p_table, (1, 2)), title="Podcasts", border_style=POD_BLUE if self.active_pane == 'podcasts' else GRAY_TEXT))
         
         e_table = Table(show_header=False, box=None, expand=True); e_table.add_column("T")
+        visible_eps = self.get_visible_episodes()
+        self.selected_episode_index = max(0, min(self.selected_episode_index, len(visible_eps)-1)) if visible_eps else 0
+        
         if self.is_fetching_episodes: e_table.add_row(Text(f"  {self.loading_status}", style=GRAY_TEXT))
-        elif not self.episodes: e_table.add_row(Text("  No episodes found.", style=GRAY_TEXT))
+        elif not visible_eps: e_table.add_row(Text("  No episodes found.", style=GRAY_TEXT))
         else:
             e_start = max(0, self.selected_episode_index - h // 2)
-            cur_pod = self.podcasts[self.selected_podcast_index]
-            for i, e in enumerate(self.episodes[e_start:e_start+h]):
+            cur_pod = self.podcasts[self.selected_podcast_index] if self.podcasts else {}
+            for i, e in enumerate(visible_eps[e_start:e_start+h]):
                 is_sel = (e_start+i == self.selected_episode_index and self.active_pane == 'episodes'); prefix = "▶ " if (self.playing_episode and e['url'] == self.playing_episode['url']) else "  "
                 title_line = f"{prefix}{e['date']} - {e['title']}"
                 if cur_pod.get('type') == 'global': title_line = f"{prefix}{e['date']} - [{e['podcast_name']}] {e['title']}"
                 e_table.add_row(Text(title_line, style=f"bold {POD_BLUE}" if is_sel else "", overflow="ellipsis"))
-        layout["episodes"].update(Panel(e_table, title="Episodes", border_style=POD_BLUE if self.active_pane == 'episodes' else GRAY_TEXT))
+        
+        if self.search_mode and self.search_buffer and not visible_eps:
+             e_table.add_row(Text("\n[Enter] to search iTunes", style=GRAY_TEXT))
+             
+        layout["episodes"].update(Panel(Padding(e_table, (1, 2)), title="Episodes", border_style=POD_BLUE if self.active_pane == 'episodes' else GRAY_TEXT))
         
         inner = []; pane_w = self.console.size.width * 2 // 4; target_ep = self.playing_episode; is_playing_cur = False
         if not target_ep:
@@ -354,13 +389,21 @@ class PodcastPlayer:
                  perc = min(1.0, max(0.0, pos / dur)); filled = int(perc * bar_len); bar = "━" * filled + "─" * (bar_len - filled); time_str = f"{self.format_time(pos)} / {self.format_time(dur)}"
                  inner.append(Text.assemble((bar, POD_BLUE), (f" {time_str}", GRAY_TEXT)))
             else: inner.append(Text(f"{'─' * bar_len} 00:00 / --:--", style=GRAY_TEXT))
-            if self.error_message: inner.append(Text(self.error_message, style=ERROR_RED))
-            else: inner.append(Text(status, style=f"bold {POD_BLUE}"))
-            inner.append(Text("\n" + target_ep.get('description',''), style=LIGHT_TEXT))
+            if self.error_message: inner.append(Text(f"\n{self.error_message}", style=ERROR_RED))
+            else: inner.append(Text(f"\n{status}", style=f"bold {POD_BLUE}"))
+            
+            # Dynamic Truncation based on window area
+            area = self.console.size.width * self.console.size.height
+            limit = max(200, area // 10)
+            desc = target_ep.get('description','')
+            if len(desc) > limit: desc = desc[:limit] + "..."
+            inner.append(Text("\n" + desc, style=LIGHT_TEXT))
         
-        layout["now_playing"].update(Panel(Align.center(Text("\n").join(inner), vertical="middle"), title="Info / Now Playing", border_style=POD_BLUE if self.active_pane == 'now_playing' else GRAY_TEXT))
-        footer = Text("↑/↓: Nav | Ent: Play | /: Search (or URL) | s: Sub | Tab: Pane | ←/→: Seek/Pane | q: Quit", style=GRAY_TEXT)
-        if self.search_mode: footer = Text(f"🔍 {self.search_buffer}█", style=LIGHT_TEXT)
+        layout["now_playing"].update(Panel(Padding(Align.center(Text("\n").join(inner), vertical="middle"), (1, 3)), title="Info / Now Playing", border_style=POD_BLUE if self.active_pane == 'now_playing' else GRAY_TEXT))
+        footer = Text("↑/↓: Nav | Ent: Play | /: Filter | s: Sub | Tab: Pane | q: Quit", style=GRAY_TEXT)
+        if self.search_mode:
+            context = "Filter / Search iTunes: "
+            footer = Text.assemble((context, GRAY_TEXT), (self.search_buffer, LIGHT_TEXT), ("█", POD_BLUE))
         layout["footer"].update(Align.center(footer))
 
     def handle_input(self):
@@ -372,29 +415,54 @@ class PodcastPlayer:
                     char = sys.stdin.read(1)
                     if self.search_mode:
                         if char in ['\r', '\n']:
-                            if self.search_buffer.startswith('http'):
-                                # Direct RSS feed support
-                                pod = {'name': 'Custom Feed', 'artist': 'RSS', 'feed_url': self.search_buffer, 'itunes_id': None, 'description': 'Custom RSS Feed'}
+                            self.search_mode = False; q = self.search_buffer; self.search_buffer = ""
+                            if not q.strip():
+                                self.fetch_discovery(); self.update_podcast_list(); continue
+                                
+                            if q.startswith('http') and self.active_pane == 'podcasts':
+                                pod = {'name': 'Custom Feed', 'artist': 'RSS', 'feed_url': q, 'itunes_id': None, 'description': 'Custom RSS Feed'}
                                 self.subscriptions.append(pod); self.save_subscriptions()
-                                self.update_podcast_list(); self.active_pane = 'podcasts'
+                                self.update_podcast_list(); self.active_pane = 'podcasts'; self.selected_podcast_index = 0
                             else:
                                 try:
-                                    resp = requests.get(f"https://itunes.apple.com/search?term={requests.utils.quote(self.search_buffer)}&entity=podcast").json()
-                                    self.discovery = [{'name': r.get('collectionName', 'Unknown'), 'artist': r.get('artistName', 'Unknown'), 'itunes_id': r.get('collectionId'), 'feed_url': r.get('feedUrl', ''), 'description': r.get('primaryGenreName', 'Podcast')} for r in resp.get('results', [])]
-                                    self.selected_podcast_index = 0; self.active_pane = 'podcasts'; self.update_podcast_list()
-                                except: pass
-                            self.search_mode = False
-                        elif char == '\x1b': self.search_mode = False
-                        elif ord(char) == 127: self.search_buffer = self.search_buffer[:-1]
+                                    self.set_error(f"Searching iTunes for '{q}'...")
+                                    entity = "podcast" if self.active_pane == 'podcasts' else "podcastEpisode"
+                                    resp = requests.get(f"https://itunes.apple.com/search?term={requests.utils.quote(q)}&entity={entity}&limit=50").json()
+                                    results = resp.get('results', [])
+                                    if results:
+                                        if self.active_pane == 'podcasts':
+                                            self.discovery = [{'name': r.get('collectionName', 'Unknown'), 'artist': r.get('artistName', 'Unknown'), 'itunes_id': r.get('collectionId'), 'feed_url': r.get('feedUrl', ''), 'description': r.get('primaryGenreName', 'Podcast')} for r in results]
+                                            self.update_podcast_list()
+                                            for idx, p in enumerate(self.podcasts):
+                                                if p.get('type') == 'header' and 'DISCOVERY' in p.get('name', ''):
+                                                    self.selected_podcast_index = idx + 1; break
+                                        else:
+                                            self.episodes = []
+                                            for r in results:
+                                                date_str = r.get('releaseDate', '')[:16].replace('T', ' ')
+                                                self.episodes.append({'title': r.get('trackName', 'Unknown'), 'description': r.get('description', ''), 'url': r.get('episodeUrl', ''), 'date': date_str, 'duration': str(r.get('trackTimeMillis', 0) // 1000), 'podcast_name': r.get('collectionName', 'Unknown')})
+                                            self.selected_episode_index = 0
+                                        self.set_error("")
+                                    else:
+                                        self.set_error("No results found.")
+                                except Exception as e: 
+                                    self.set_error(f"Search error: {str(e)}")
+                        elif char == '\x1b':
+                            if select.select([sys.stdin], [], [], 0.01)[0]:
+                                sys.stdin.read(2)
+                            else:
+                                self.search_mode = False
+                        elif ord(char) in [8, 127]: self.search_buffer = self.search_buffer[:-1]
                         else: self.search_buffer += char
                     else:
                         if char == 'q': self.running = False
                         elif char == '/':
-                             if self.active_pane == 'podcasts': self.search_mode = True; self.search_buffer = ""
+                             self.search_mode = True; self.search_buffer = ""
                         elif char == 's': self.toggle_subscription()
                         elif ord(char) == 9: # Tab cycle
                              cycle = ['podcasts', 'episodes', 'now_playing']
                              self.active_pane = cycle[(cycle.index(self.active_pane) + 1) % len(cycle)]
+                             if self.search_mode: self.search_buffer = ""; self.search_mode = False # Reset on tab
                         elif char == 'h': self.active_pane = 'podcasts'
                         elif char == 'l': self.active_pane = 'episodes'
                         elif char == ' ': self.send_mpv_command(["cycle", "pause"])
@@ -406,15 +474,23 @@ class PodcastPlayer:
                         elif char == '\x1b':
                             seq = sys.stdin.read(2)
                             if seq == '[A': # Up
-                                self.selected_podcast_index = max(0, self.selected_podcast_index - 1) if self.active_pane == 'podcasts' else max(0, self.selected_episode_index - 1)
-                                if self.active_pane == 'podcasts' and self.podcasts[self.selected_podcast_index].get('type') == 'header':
-                                    self.selected_podcast_index = max(0, self.selected_podcast_index - 1)
-                            elif seq == '[B': # Down
+                                visible_pods = self.get_visible_podcasts()
+                                visible_eps = self.get_visible_episodes()
                                 if self.active_pane == 'podcasts':
-                                    self.selected_podcast_index = min(len(self.podcasts) - 1, self.selected_podcast_index + 1)
-                                    if self.podcasts[self.selected_podcast_index].get('type') == 'header':
-                                        self.selected_podcast_index = min(len(self.podcasts)-1, self.selected_podcast_index + 1)
-                                else: self.selected_episode_index = min(len(self.episodes) - 1, self.selected_episode_index + 1)
+                                    self.selected_podcast_index = max(0, self.selected_podcast_index - 1)
+                                    if self.selected_podcast_index < len(visible_pods) and visible_pods[self.selected_podcast_index].get('type') == 'header':
+                                        self.selected_podcast_index = max(0, self.selected_podcast_index - 1)
+                                else:
+                                    self.selected_episode_index = max(0, self.selected_episode_index - 1)
+                            elif seq == '[B': # Down
+                                visible_pods = self.get_visible_podcasts()
+                                visible_eps = self.get_visible_episodes()
+                                if self.active_pane == 'podcasts':
+                                    self.selected_podcast_index = min(len(visible_pods) - 1, self.selected_podcast_index + 1)
+                                    if self.selected_podcast_index < len(visible_pods) and visible_pods[self.selected_podcast_index].get('type') == 'header':
+                                        self.selected_podcast_index = min(len(visible_pods)-1, self.selected_podcast_index + 1)
+                                else:
+                                    self.selected_episode_index = min(len(visible_eps) - 1, self.selected_episode_index + 1)
                             elif seq == '[D': # Left
                                 if self.active_pane == 'now_playing': self.send_mpv_command(["seek", -10])
                                 elif self.active_pane == 'episodes': self.active_pane = 'podcasts'
