@@ -100,7 +100,7 @@ class PodcastPlayer:
         self.current_position = 0.0; self.total_duration = 0.0
         self.console = Console(); self.load_subscriptions()
         self.is_fetching_episodes = False; self.loading_status = ""; self.last_index_for_fetch = -1; self.error_message = ""; self.error_time = 0
-        self.current_fetch_id = 0
+        self.current_fetch_id = 0; self.is_showing_search = False
         self.playback_history = self.load_history()
         self.last_save_time = time.time()
         self.fetch_discovery(); self.update_podcast_list()
@@ -140,7 +140,7 @@ class PodcastPlayer:
 
     def fetch_discovery(self):
         try:
-            self.set_error("Updating discovery charts...")
+            self.set_error("Updating discovery charts..."); self.is_showing_search = False
             url = "https://rss.applemarketingtools.com/api/v2/us/podcasts/top/50/podcasts.json"
             resp = requests.get(url, timeout=5); data = resp.json().get('feed', {}).get('results', [])
             self.discovery = [{'name': r.get('name'), 'artist': r.get('artistName'), 'feed_url': "", 'itunes_id': r.get('id'), 'description': r.get('genres', [{}])[0].get('name', 'Podcast'), 'full_description': ""} for r in data]
@@ -169,7 +169,8 @@ class PodcastPlayer:
             sorted_subs = sorted(self.subscriptions, key=lambda x: x.get('latest_date', ''), reverse=True)
             new_list.extend(sorted_subs)
         
-        new_list.append({'type': 'header', 'name': '--- DISCOVERY ---'})
+        discovery_label = "--- SEARCH RESULTS ---" if self.is_showing_search else "--- DISCOVERY ---"
+        new_list.append({'type': 'header', 'name': discovery_label})
         new_list.extend(self.discovery)
         self.podcasts = new_list
         if self.podcasts and self.podcasts[self.selected_podcast_index].get('type') == 'header':
@@ -409,7 +410,7 @@ class PodcastPlayer:
             inner.append(Text("\n" + desc, style=LIGHT_TEXT))
         
         layout["now_playing"].update(Panel(Padding(Align.center(Text("\n").join(inner), vertical="middle"), (1, 3)), title="Info / Now Playing", border_style=POD_BLUE if self.active_pane == 'now_playing' else GRAY_TEXT))
-        footer = Text("↑/↓: Nav | Ent: Play | /: Filter | s: Sub | Tab: Pane | q: Quit", style=GRAY_TEXT)
+        footer = Text("↑/↓: Nav | Ent: Play | /: Filter | c: Reset | s: Sub | Tab: Pane | q: Quit", style=GRAY_TEXT)
         if self.search_mode:
             context = "Filter / Search iTunes: "
             footer = Text.assemble((context, GRAY_TEXT), (self.search_buffer, LIGHT_TEXT), ("█", POD_BLUE))
@@ -440,6 +441,7 @@ class PodcastPlayer:
                                     results = resp.get('results', [])
                                     if results:
                                         if self.active_pane == 'podcasts':
+                                            self.is_showing_search = True
                                             self.discovery = [{'name': r.get('collectionName', 'Unknown'), 'artist': r.get('artistName', 'Unknown'), 'itunes_id': r.get('collectionId'), 'feed_url': r.get('feedUrl', ''), 'description': r.get('primaryGenreName', 'Podcast')} for r in results]
                                             self.update_podcast_list()
                                             for idx, p in enumerate(self.podcasts):
@@ -460,11 +462,12 @@ class PodcastPlayer:
                             if select.select([sys.stdin], [], [], 0.01)[0]:
                                 sys.stdin.read(2)
                             else:
-                                self.search_mode = False
+                                self.search_mode = False; self.search_buffer = ""
                         elif ord(char) in [8, 127]: self.search_buffer = self.search_buffer[:-1]
                         else: self.search_buffer += char
                     else:
                         if char == 'q': self.running = False
+                        elif char == 'c': self.fetch_discovery(); self.update_podcast_list()
                         elif char == '/':
                              self.search_mode = True; self.search_buffer = ""
                         elif char == 's': self.toggle_subscription()
