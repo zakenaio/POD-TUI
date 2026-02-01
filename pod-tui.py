@@ -327,6 +327,8 @@ class PodcastPlayer:
                 if pod.get('type') != 'header':
                     self.current_fetch_id += 1
                     threading.Thread(target=self.async_fetch_episodes, args=(pod, self.current_fetch_id), daemon=True).start()
+        h = self.console.size.height - 8
+        p_table = Table(show_header=False, box=None, expand=True); p_table.add_column("N")
         p_start = max(0, self.selected_podcast_index - h // 2)
         
         for i, p in enumerate(visible_pods[p_start:p_start+h]):
