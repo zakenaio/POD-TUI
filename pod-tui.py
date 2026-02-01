@@ -100,6 +100,7 @@ class PodcastPlayer:
         self.current_position = 0.0; self.total_duration = 0.0
         self.console = Console(); self.load_subscriptions()
         self.is_fetching_episodes = False; self.loading_status = ""; self.last_index_for_fetch = -1; self.error_message = ""; self.error_time = 0
+        self.current_fetch_id = 0
         self.playback_history = self.load_history()
         self.last_save_time = time.time()
         self.fetch_discovery(); self.update_podcast_list()
@@ -208,8 +209,8 @@ class PodcastPlayer:
             return eps
         except: return []
 
-    def async_fetch_episodes(self, podcast):
-        if podcast.get('type') == 'header': return
+    def async_fetch_episodes(self, podcast, fetch_id):
+        if podcast.get('type') == 'header' or fetch_id != self.current_fetch_id: return
         self.is_fetching_episodes = True; self.loading_status = "Loading..."
         
         if podcast.get('type') == 'global':
@@ -220,18 +221,23 @@ class PodcastPlayer:
             for s in self.subscriptions:
                 t = threading.Thread(target=worker, args=(s,)); t.start(); threads.append(t)
             for t in threads: t.join()
-            self.episodes = sorted(all_eps, key=lambda x: x['date'], reverse=True)
-            self.loading_status = ""
+            if fetch_id == self.current_fetch_id:
+                self.episodes = sorted(all_eps, key=lambda x: x['date'], reverse=True)
+                self.loading_status = ""
         else:
             self.loading_status = "Fetching episodes..."
-            self.episodes = self.fetch_single_feed(podcast, limit=100)
-            if self.episodes:
-                latest = self.episodes[0]['date']
-                if podcast.get('latest_date') != latest:
-                    podcast['latest_date'] = latest
-                    if any(s['name'] == podcast['name'] for s in self.subscriptions): self.save_subscriptions()
-            self.loading_status = ""
-        self.is_fetching_episodes = False
+            eps = self.fetch_single_feed(podcast, limit=100)
+            if fetch_id == self.current_fetch_id:
+                self.episodes = eps
+                if self.episodes:
+                    latest = self.episodes[0]['date']
+                    if podcast.get('latest_date') != latest:
+                        podcast['latest_date'] = latest
+                        if any(s['name'] == podcast['name'] for s in self.subscriptions): self.save_subscriptions()
+                self.loading_status = ""
+        
+        if fetch_id == self.current_fetch_id:
+            self.is_fetching_episodes = False
 
     def render_big_text(self, text, color=POD_BLUE, max_width=None):
         raw_text = unicodedata.normalize('NFC', text).upper()
@@ -307,16 +313,19 @@ class PodcastPlayer:
         header_text = Text.assemble(("POD-TUI", f"bold {POD_BLUE}"), (" - Podcast Explorer ", LIGHT_TEXT), (f"[{datetime.now().strftime('%H:%M:%S')}]", GRAY_TEXT))
         layout["header"].update(Panel(Align.center(header_text, vertical="middle"), border_style=POD_BLUE))
         
-        if self.selected_podcast_index != self.last_index_for_fetch:
-            self.last_index_for_fetch = self.selected_podcast_index; self.episodes = []
-            pod = self.podcasts[self.selected_podcast_index]
-            if pod.get('type') != 'header':
-                threading.Thread(target=self.async_fetch_episodes, args=(pod,), daemon=True).start()
-            
-        p_table = Table(show_header=False, box=None, expand=True); p_table.add_column("N")
-        h = self.console.size.height - 8; 
         visible_pods = self.get_visible_podcasts()
         self.selected_podcast_index = max(0, min(self.selected_podcast_index, len(visible_pods)-1)) if visible_pods else 0
+        
+        # Determine if we need to fetch new episodes
+        selection_key = f"{visible_pods[self.selected_podcast_index].get('name')}-{self.active_pane}" if visible_pods else ""
+        if selection_key != self.last_index_for_fetch:
+            self.last_index_for_fetch = selection_key
+            self.episodes = []; self.is_fetching_episodes = False
+            if visible_pods:
+                pod = visible_pods[self.selected_podcast_index]
+                if pod.get('type') != 'header':
+                    self.current_fetch_id += 1
+                    threading.Thread(target=self.async_fetch_episodes, args=(pod, self.current_fetch_id), daemon=True).start()
         p_start = max(0, self.selected_podcast_index - h // 2)
         
         for i, p in enumerate(visible_pods[p_start:p_start+h]):
