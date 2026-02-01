@@ -412,7 +412,7 @@ class PodcastPlayer:
             inner.append(Text("\n" + desc, style=LIGHT_TEXT))
         
         layout["now_playing"].update(Panel(Padding(Align.center(Text("\n").join(inner), vertical="middle"), (1, 3)), title="Info / Now Playing", border_style=POD_BLUE if self.active_pane == 'now_playing' else GRAY_TEXT))
-        footer = Text("↑/↓: Nav | Ent: Play | /: Filter | c: Reset | s: Sub | Tab: Pane | q: Quit", style=GRAY_TEXT)
+        footer = Text("↑/↓: Nav | Ent: Play | /: Filter | s: Sub | Tab: Pane | q: Quit", style=GRAY_TEXT)
         if self.search_mode:
             context = "Filter / Search iTunes: "
             footer = Text.assemble((context, GRAY_TEXT), (self.search_buffer, LIGHT_TEXT), ("█", POD_BLUE))
@@ -464,12 +464,12 @@ class PodcastPlayer:
                             if select.select([sys.stdin], [], [], 0.01)[0]:
                                 sys.stdin.read(2)
                             else:
-                                self.search_mode = False; self.search_buffer = ""
+                                if self.is_showing_search: self.fetch_discovery()
+                                self.search_mode = False; self.search_buffer = ""; self.update_podcast_list()
                         elif ord(char) in [8, 127]: self.search_buffer = self.search_buffer[:-1]
                         else: self.search_buffer += char
                     else:
                         if char == 'q': self.running = False
-                        elif char == 'c': self.fetch_discovery(); self.update_podcast_list()
                         elif char == '/':
                              self.search_mode = True; self.search_buffer = ""
                         elif char == 's': self.toggle_subscription()
@@ -486,32 +486,32 @@ class PodcastPlayer:
                                 self.active_pane = 'episodes'; self.selected_episode_index = 0
                             elif self.active_pane == 'episodes' and self.episodes: self.play_episode(self.episodes[self.selected_episode_index])
                         elif char == '\x1b':
-                            seq = sys.stdin.read(2)
-                            if seq == '[A': # Up
+                            if select.select([sys.stdin], [], [], 0.01)[0]:
+                                seq = sys.stdin.read(2)
                                 visible_pods = self.get_visible_podcasts()
                                 visible_eps = self.get_visible_episodes()
-                                if self.active_pane == 'podcasts':
-                                    self.selected_podcast_index = max(0, self.selected_podcast_index - 1)
-                                    if self.selected_podcast_index < len(visible_pods) and visible_pods[self.selected_podcast_index].get('type') == 'header':
+                                if seq == '[A': # Up
+                                    if self.active_pane == 'podcasts':
                                         self.selected_podcast_index = max(0, self.selected_podcast_index - 1)
-                                else:
-                                    self.selected_episode_index = max(0, self.selected_episode_index - 1)
-                            elif seq == '[B': # Down
-                                visible_pods = self.get_visible_podcasts()
-                                visible_eps = self.get_visible_episodes()
-                                if self.active_pane == 'podcasts':
-                                    self.selected_podcast_index = min(len(visible_pods) - 1, self.selected_podcast_index + 1)
-                                    if self.selected_podcast_index < len(visible_pods) and visible_pods[self.selected_podcast_index].get('type') == 'header':
+                                        if self.selected_podcast_index < len(visible_pods) and visible_pods[self.selected_podcast_index].get('type') == 'header':
+                                            self.selected_podcast_index = max(0, self.selected_podcast_index - 1)
+                                    else: self.selected_episode_index = max(0, self.selected_episode_index - 1)
+                                elif seq == '[B': # Down
+                                    if self.active_pane == 'podcasts':
                                         self.selected_podcast_index = min(len(visible_pods)-1, self.selected_podcast_index + 1)
-                                else:
-                                    self.selected_episode_index = min(len(visible_eps) - 1, self.selected_episode_index + 1)
-                            elif seq == '[D': # Left
-                                if self.active_pane == 'now_playing': self.send_mpv_command(["seek", -10])
-                                elif self.active_pane == 'episodes': self.active_pane = 'podcasts'
-                            elif seq == '[C': # Right
-                                if self.active_pane == 'now_playing': self.send_mpv_command(["seek", 10])
-                                elif self.active_pane == 'podcasts': self.active_pane = 'episodes'
-                                elif self.active_pane == 'episodes': self.active_pane = 'now_playing'
+                                        if self.selected_podcast_index < len(visible_pods) and visible_pods[self.selected_podcast_index].get('type') == 'header':
+                                            self.selected_podcast_index = min(len(visible_pods)-1, self.selected_podcast_index + 1)
+                                    else: self.selected_episode_index = min(len(visible_eps)-1, self.selected_episode_index + 1)
+                                elif seq == '[D': # Left
+                                    if self.active_pane == 'now_playing': self.send_mpv_command(["seek", -10])
+                                    elif self.active_pane == 'episodes': self.active_pane = 'podcasts'
+                                elif seq == '[C': # Right
+                                    if self.active_pane == 'now_playing': self.send_mpv_command(["seek", 10])
+                                    elif self.active_pane == 'podcasts': self.active_pane = 'episodes'
+                            else:
+                                # Standalone ESC resets search/discovery
+                                if self.is_showing_search: self.fetch_discovery()
+                                self.search_mode = False; self.search_buffer = ""; self.update_podcast_list()
         finally: termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
     def run(self):
